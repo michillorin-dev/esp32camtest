@@ -65,9 +65,9 @@ function detectMotion(newBuffer) {
 }
 
 // Ruta principal
-app.get("/", (req, res) => {
-    res.send("Servidor funcionando");
-});
+// app.get("/", (req, res) => {
+//     res.send("Servidor funcionando");
+// });
 
 // Ruta para recibir imágenes
 app.post("/upload", upload.single("image"), async (req, res) => {
