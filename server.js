@@ -4,6 +4,8 @@ const fs = require('fs');
 const multer = require('multer');
 const axios = require('axios');
 
+const app = express();
+
 // Configuración de Telegram
 const telegramConfig = require('./config/telegram');
 const TELEGRAM_BOT_TOKEN = telegramConfig.TELEGRAM_BOT_TOKEN;
