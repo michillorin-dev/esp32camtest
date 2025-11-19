@@ -1,11 +1,11 @@
 const fs = require('fs');
-const imageHash = require('image-hash');
+const { imageHash } = require('image-hash');
 const sharp = require('sharp');
 
 let lastImageHash = null;
 
 function detectMotionByHash(imagePath, cb) {
-  imageHash.hash(imagePath, 8, 'hex', (err, hash) => {
+  imageHash(imagePath, 8, 'hex', (err, hash) => {
     if (err) {
       cb(false);
       return;
