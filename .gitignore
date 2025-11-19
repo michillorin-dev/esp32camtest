@@ -1,0 +1,11 @@
+# Carpetas que no deben subirse
+node_modules/
+uploads/
+
+# Archivos del sistema
+.DS_Store
+
+# Logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
