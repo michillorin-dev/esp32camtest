@@ -4,6 +4,7 @@ const fs = require('fs');
 const multer = require('multer');
 const axios = require('axios');
 
+const PORT = process.env.PORT || 3000;
 const app = express();
 
 // Configuración de Telegram
