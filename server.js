@@ -37,6 +37,9 @@ let lastImageBuffer = null;
 let lastAlertTime = 0;
 const ALERT_COOLDOWN = 30 * 1000; // 30 segundos
 
+// Historial de alertas en memoria
+let alertHistory = [];
+
 // ========== FUNCION PARA ENVIAR MENSAJE A TELEGRAM ==========
 async function sendTelegramAlert() {
     try {
@@ -44,6 +47,13 @@ async function sendTelegramAlert() {
             chat_id: TELEGRAM_CHAT_ID,
             text: "¡Se ha detectado movimiento! ¡Abre vigilive!",
         });
+        // Registrar alerta en historial
+        alertHistory.unshift({
+            timestamp: Date.now(),
+            message: "¡Se ha detectado movimiento!",
+        });
+        // Limitar historial a 20
+        if (alertHistory.length > 20) alertHistory = alertHistory.slice(0, 20);
         console.log("[Telegram] Alerta enviada");
     } catch (err) {
         console.error("[Telegram] Error enviando alerta:", err.message);
@@ -57,11 +67,14 @@ function detectMotion(newBuffer) {
         return false;
     }
     let diff = 0;
-    for (let i = 0; i < newBuffer.length; i += 20) { // sample cada 20 bytes
-        if (Math.abs(newBuffer[i] - lastImageBuffer[i]) > 30) diff++;
+    let total = 0;
+    for (let i = 0; i < newBuffer.length; i += 10) { // sample cada 10 bytes (más sensible)
+        if (Math.abs(newBuffer[i] - lastImageBuffer[i]) > 15) diff++; // umbral más bajo
+        total++;
     }
     lastImageBuffer = Buffer.from(newBuffer);
-    return diff > 100; // umbral simple
+    console.log(`[Motion] Diferencias detectadas: ${diff} / ${total}`);
+    return diff > 50; // umbral más bajo para disparar alerta
 }
 
 // Ruta principal
@@ -76,11 +89,14 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     const buffer = fs.readFileSync(req.file.path);
     if (detectMotion(buffer)) {
         if (now - lastAlertTime > ALERT_COOLDOWN) {
+            console.log("[Motion] ¡Movimiento detectado! Enviando alerta a Telegram...");
             await sendTelegramAlert();
             lastAlertTime = now;
         } else {
             console.log("[Telegram] En cooldown, no se envía alerta");
         }
+    } else {
+        console.log("[Motion] Sin movimiento relevante");
     }
     res.json({ status: "ok", file: req.file.filename });
 });
@@ -110,6 +126,11 @@ app.get("/gallery", (req, res) => {
         .sort((a, b) => fs.statSync(path.join(uploadDir, b)).mtime - fs.statSync(path.join(uploadDir, a)).mtime)
         .slice(0, 20);
     res.json({ files });
+});
+
+// Endpoint para obtener historial de alertas
+app.get("/alerts", (req, res) => {
+    res.json({ alerts: alertHistory });
 });
 
 // Iniciar servidor

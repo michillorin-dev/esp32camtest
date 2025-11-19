@@ -13,6 +13,7 @@
     .gallery { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 2em; }
     .gallery img { width: 90px; height: 70px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid #eee; transition: border 0.2s; }
     .gallery img:hover { border: 2px solid #2980b9; }
+    .alertHistory { color: #c0392b; padding-left: 1em; margin-top: 2em; }
   </style>
 </head>
 <body>
@@ -22,6 +23,8 @@
     <img id="lastImage" src="/uploads/placeholder.jpg" alt="Última imagen" />
     <div id="alert" class="alert"></div>
     <button onclick="refreshImage()">Actualizar</button>
+    <div class="info" style="margin-top:2em;">Historial de alertas de movimiento:</div>
+    <ul id="alertHistory" style="color:#c0392b; padding-left:1em;"></ul>
     <div class="info" style="margin-top:2em;">Galería de últimas imágenes:</div>
     <div class="gallery" id="gallery"></div>
   </div>
@@ -57,13 +60,36 @@
         gallery.innerHTML = '<em>No hay imágenes recientes.</em>';
       }
     }
+    async function fetchAlertHistory() {
+      const res = await fetch('/alerts');
+      const data = await res.json();
+      const alertHistory = document.getElementById('alertHistory');
+      alertHistory.innerHTML = '';
+      if(data.alerts && data.alerts.length) {
+        data.alerts.forEach(alert => {
+          const li = document.createElement('li');
+          const date = new Date(alert.timestamp);
+          li.textContent = `${date.toLocaleString()} - ${alert.message}`;
+          alertHistory.appendChild(li);
+        });
+      } else {
+        alertHistory.innerHTML = '<em>No hay alertas recientes.</em>';
+      }
+    }
     function refreshImage() {
       fetchLastImage();
       fetchGallery();
+      fetchAlertHistory();
     }
     window.onload = () => {
       fetchLastImage();
       fetchGallery();
+      fetchAlertHistory();
+      setInterval(() => {
+        fetchLastImage();
+        fetchGallery();
+        fetchAlertHistory();
+      }, 5000); // Actualiza cada 5 segundos
     };
   </script>
 </body>
