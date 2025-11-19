@@ -1,17 +1,28 @@
 const fs = require('fs');
+const imageHash = require('image-hash');
+const sharp = require('sharp');
 
-function detectMotion(newBuffer, lastImageBufferObj) {
-  if (!lastImageBufferObj.buffer || lastImageBufferObj.buffer.length !== newBuffer.length) {
-    lastImageBufferObj.buffer = Buffer.from(newBuffer);
-    return false;
-  }
-  let totalDiff = 0;
-  for (let i = 0; i < newBuffer.length; i++) {
-    totalDiff += Math.abs(newBuffer[i] - lastImageBufferObj.buffer[i]);
-  }
-  lastImageBufferObj.buffer = Buffer.from(newBuffer);
-  // Umbral: si la suma de diferencias es muy grande, hay movimiento
-  return totalDiff > 200000; // Ajusta este valor según pruebas
+let lastImageHash = null;
+
+function detectMotionByHash(imagePath, cb) {
+  imageHash.hash(imagePath, 8, 'hex', (err, hash) => {
+    if (err) {
+      cb(false);
+      return;
+    }
+    if (!lastImageHash) {
+      lastImageHash = hash;
+      cb(false);
+      return;
+    }
+    // Distancia de Hamming
+    let diff = 0;
+    for (let i = 0; i < hash.length; i++) {
+      if (hash[i] !== lastImageHash[i]) diff++;
+    }
+    lastImageHash = hash;
+    cb(diff > 10); // Umbral: ajusta según pruebas
+  });
 }
 
 module.exports = (upload, sendTelegramAlert, alertHistory, lastImageBufferObj, ALERT_COOLDOWN, lastAlertTimeObj) => async (req, res) => {
@@ -19,13 +30,15 @@ module.exports = (upload, sendTelegramAlert, alertHistory, lastImageBufferObj, A
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const now = Date.now();
-    const buffer = fs.readFileSync(req.file.path);
-    if (detectMotion(buffer, lastImageBufferObj)) {
-      if (now - lastAlertTimeObj.time > ALERT_COOLDOWN) {
-        await sendTelegramAlert();
-        lastAlertTimeObj.time = now;
+    const imagePath = req.file.path;
+    detectMotionByHash(imagePath, async (motion) => {
+      if (motion) {
+        if (now - lastAlertTimeObj.time > ALERT_COOLDOWN) {
+          await sendTelegramAlert();
+          lastAlertTimeObj.time = now;
+        }
       }
-    }
-    res.json({ status: 'ok', file: req.file.filename });
+      res.json({ status: 'ok', file: req.file.filename });
+    });
   });
 };
